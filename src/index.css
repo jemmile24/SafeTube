@@ -1,0 +1,109 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-safetube-dark text-gray-100 font-sans;
+  }
+
+  html.light body {
+    @apply bg-safetube-lightBg text-gray-900;
+  }
+
+  html.light .bg-safetube-dark {
+    @apply bg-safetube-lightBg;
+  }
+
+  html.light .bg-safetube-darker {
+    @apply bg-white;
+  }
+
+  html.light .bg-safetube-card {
+    @apply bg-white border-safetube-lightBorder text-gray-900;
+  }
+
+  html.light .bg-safetube-cardHover:hover {
+    @apply bg-gray-50;
+  }
+
+  html.light .border-safetube-border {
+    @apply border-safetube-lightBorder;
+  }
+
+  html.light .text-white {
+    @apply text-gray-900;
+  }
+
+  html.light .text-gray-100 {
+    @apply text-gray-900;
+  }
+
+  html.light .text-gray-200 {
+    @apply text-gray-800;
+  }
+
+  html.light .text-gray-300 {
+    @apply text-gray-700;
+  }
+
+  html.light .text-gray-400 {
+    @apply text-gray-600;
+  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+.animate-spin-slow {
+  animation: spinSlow 20s linear infinite;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333333;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555555;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -9,12 +9,12 @@
 const CACHE_NAME = 'safetube-v1.0.0';
 
 const APP_SHELL_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.webmanifest',
-  '/favicon.svg',
-  '/icons/icon-192.svg',
-  '/icons/icon-512.svg',
+  '/SafeTube/',
+  '/SafeTube/index.html',
+  '/SafeTube/manifest.webmanifest',
+  '/SafeTube/favicon.svg',
+  '/SafeTube/icons/icon-192.svg',
+  '/SafeTube/icons/icon-512.svg',
 ];
 
 // Install: Cache core application shell
@@ -87,9 +87,8 @@ self.addEventListener('fetch', (event) => {
         }
         return networkResponse;
       }).catch(() => {
-        // Fallback to cached index.html for navigation requests
         if (request.mode === 'navigate') {
-          return caches.match('/index.html');
+          return caches.match('/SafeTube/index.html');
         }
       });
 

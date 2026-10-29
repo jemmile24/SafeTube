@@ -35,7 +35,7 @@ export const App: React.FC = () => {
   // Navigation and view state
   const [viewMode, setViewMode] = useState<ViewMode>('catalog');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -242,7 +242,7 @@ export const App: React.FC = () => {
         />
 
         {/* Content Viewport */}
-        <main className="flex-1 p-4 sm:p-6 pb-20 md:pb-8 min-w-0">
+        <main className="flex-1 px-3 sm:px-6 py-3 sm:py-6 pb-24 md:pb-8 min-w-0 overflow-x-hidden">
           {viewMode === 'player' && selectedVideo ? (
             <SafePlayer
               video={selectedVideo}

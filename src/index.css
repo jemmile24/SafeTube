@@ -3,8 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-safetube-dark text-gray-100 font-sans;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   html.light body {
@@ -83,8 +89,8 @@
 
 /* Custom minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {

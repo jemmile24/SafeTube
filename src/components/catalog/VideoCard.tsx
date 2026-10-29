@@ -31,7 +31,7 @@ export const VideoCard: React.FC<VideoCardProps> = ({
     : video.thumbnailHighUrl || video.thumbnailUrl;
 
   return (
-    <div className="group flex flex-col gap-3 cursor-pointer select-none transition-transform duration-200">
+    <div className="group flex flex-col gap-2.5 cursor-pointer select-none transition-transform duration-200">
       {/* Thumbnail Container */}
       <div
         onClick={() => onSelectVideo(video)}
@@ -55,13 +55,20 @@ export const VideoCard: React.FC<VideoCardProps> = ({
 
         {/* Duration badge */}
         {video.duration && (
-          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/80 backdrop-blur-sm text-[11px] font-semibold text-white tracking-wide">
+          <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md bg-black/85 backdrop-blur-sm text-[11px] font-semibold text-white tracking-wide">
             {video.duration}
           </div>
         )}
 
-        {/* Hover overlay with quick play button */}
-        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-3">
+        {/* Category tag on thumbnail */}
+        {video.category && (
+          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-emerald-600/85 backdrop-blur-sm text-[10px] font-semibold text-white tracking-wide shadow-sm">
+            {video.category}
+          </div>
+        )}
+
+        {/* Desktop Hover overlay with quick play button */}
+        <div className="hidden sm:flex absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 items-center justify-center gap-3">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -87,10 +94,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({
       </div>
 
       {/* Video Details & Meta */}
-      <div className="flex gap-3 px-1">
+      <div className="flex gap-2.5 px-0.5">
         {/* Channel Avatar */}
         <div className="shrink-0 pt-0.5">
-          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-safetube-red to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-safetube-red to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-sm">
             {channelInitial}
           </div>
         </div>
@@ -112,22 +119,24 @@ export const VideoCard: React.FC<VideoCardProps> = ({
             <CheckCircle2 className="w-3 h-3 text-blue-400 shrink-0" />
           </div>
 
-          <div className="flex items-center justify-between mt-2 pt-1">
-            <span className="inline-flex items-center gap-1 text-[11px] text-gray-400">
+          <div className="flex items-center justify-between mt-2 pt-1 border-t border-white/5">
+            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] text-gray-400">
               <Clock className="w-3 h-3 text-gray-400" />
               Approved
             </span>
 
+            {/* Mobile touch-friendly actions */}
             <div className="flex items-center gap-1">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectAudioMode(video);
                 }}
-                className="p-1 rounded-md text-gray-400 hover:text-amber-400 hover:bg-white/5 transition-colors"
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-gray-300 hover:text-amber-400 bg-white/5 hover:bg-white/10 text-[11px] font-medium transition-colors"
                 title="Audio Mode"
               >
-                <Headphones className="w-3.5 h-3.5" />
+                <Headphones className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[10px]">Audio</span>
               </button>
 
               <button
@@ -135,10 +144,10 @@ export const VideoCard: React.FC<VideoCardProps> = ({
                   e.stopPropagation();
                   onToggleBookmark(video.id);
                 }}
-                className={`p-1 rounded-md transition-colors ${
+                className={`p-1.5 rounded-lg bg-white/5 transition-colors ${
                   isBookmarked
-                    ? 'text-safetube-red'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                    ? 'text-safetube-red bg-safetube-red/10'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
                 }`}
                 title={isBookmarked ? 'Bookmarked' : 'Add to bookmarks'}
               >

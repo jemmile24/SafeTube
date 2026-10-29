@@ -17,6 +17,7 @@ import { VideoItem } from '../../types/video';
 import { YTPlayerState, PlayerStats } from '../../types/player';
 import { formatSeconds } from '../../utils/duration';
 import { updateMediaSession, updateMediaSessionPositionState, clearMediaSession } from '../../services/mediaSessionService';
+import { backgroundAudio } from '../../services/backgroundAudioService';
 import { CompletionScreen } from './CompletionScreen';
 
 interface SafePlayerProps {
@@ -58,12 +59,14 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
     if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
       playerRef.current.playVideo();
     }
+    backgroundAudio.startAudioSession();
   }, []);
 
   const handlePause = useCallback(() => {
     if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
       playerRef.current.pauseVideo();
     }
+    backgroundAudio.stopAudioSession();
   }, []);
 
   const handleSeek = useCallback((seconds: number) => {
@@ -120,6 +123,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
       playerRef.current.seekTo(0, true);
       playerRef.current.playVideo();
     }
+    backgroundAudio.startAudioSession();
   }, []);
 
   const handleShare = useCallback(() => {
@@ -144,7 +148,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
             controls: 1,
             modestbranding: 1,
             rel: 0,
-            playsinline: 1, // Crucial for iOS and Android
+            playsinline: 1,
             enablejsapi: 1,
             iv_load_policy: 3,
             origin: window.location.origin,
@@ -175,20 +179,25 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
 
               if (newState === YTPlayerState.ENDED) {
                 setIsCompleted(true);
+                backgroundAudio.stopAudioSession();
                 clearMediaSession();
               } else if (newState === YTPlayerState.PLAYING) {
                 setIsCompleted(false);
+                backgroundAudio.startAudioSession();
+              } else if (newState === YTPlayerState.PAUSED) {
+                backgroundAudio.stopAudioSession();
               }
             },
             onError: (event: any) => {
               if (isCancelled) return;
+              console.warn('YouTube Player error code:', event.data);
               let msg = 'Playback error occurred.';
               if (event.data === 101 || event.data === 150) {
-                msg = 'The owner of this video does not permit playback in embedded players.';
+                msg = 'Playback in embedded player is restricted.';
               } else if (event.data === 100) {
-                msg = 'This video was deleted or marked private on YouTube.';
+                msg = 'This video is unavailable or private.';
               } else if (event.data === 2) {
-                msg = 'Invalid YouTube video ID parameter.';
+                msg = 'Invalid video ID parameter.';
               }
               setPlayerError(msg);
             },
@@ -231,6 +240,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         }
       }
       playerRef.current = null;
+      backgroundAudio.stopAudioSession();
       clearMediaSession();
     };
   }, [video.id]);
@@ -290,7 +300,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
           <button
             onClick={onSwitchToAudioMode}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs sm:text-sm font-medium transition-all shadow-sm"
-            title="Switch to Audio-focused interface"
+            title="Switch to Audio Mode"
           >
             <Headphones className="w-4 h-4" />
             <span>Audio Mode</span>
@@ -319,19 +329,18 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         </div>
       </div>
 
-      {/* Main Video Viewport (16:9 Aspect Ratio) */}
+      {/* Main Video Viewport */}
       <div
         ref={containerRef}
         className="relative w-full aspect-video bg-black rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border border-white/10 group"
       >
-        {/* YouTube IFrame target element */}
         <div id={playerIdRef.current} className="w-full h-full" />
 
         {/* Loading Spinner */}
         {!isPlayerReady && !playerError && (
           <div className="absolute inset-0 bg-safetube-dark flex flex-col items-center justify-center gap-3 z-10">
             <div className="w-8 h-8 sm:w-10 sm:h-10 border-4 border-safetube-red border-t-transparent rounded-full animate-spin" />
-            <span className="text-gray-400 text-xs sm:text-sm font-medium">Loading SafeTube Player...</span>
+            <span className="text-gray-400 text-xs sm:text-sm font-medium">Loading Player...</span>
           </div>
         )}
 
@@ -462,7 +471,7 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
         </div>
       </div>
 
-      {/* Video Details & Description Section */}
+      {/* Video Details Section */}
       <div className="mt-3 sm:mt-4 bg-safetube-card p-4 sm:p-6 rounded-xl sm:rounded-2xl border border-safetube-border">
         <h1 className="text-lg sm:text-2xl font-bold text-white mb-2 leading-snug">
           {video.title}
@@ -478,21 +487,15 @@ export const SafePlayer: React.FC<SafePlayerProps> = ({
                 <span className="text-xs sm:text-sm font-semibold text-white">{video.channelTitle}</span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
               </div>
-              <span className="text-[10px] sm:text-xs text-gray-400">Approved Creator</span>
+              <span className="text-[10px] sm:text-xs text-gray-400">Verified</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            {video.category && (
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] sm:text-xs font-medium">
-                {video.category}
-              </span>
-            )}
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] sm:text-xs font-medium">
-              <CheckCircle2 className="w-3 h-3" />
-              Sheet Approved
+          {video.category && (
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-medium">
+              {video.category}
             </span>
-          </div>
+          )}
         </div>
 
         {/* Video Description */}

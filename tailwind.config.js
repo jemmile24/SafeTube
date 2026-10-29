@@ -11,18 +11,20 @@ export default {
         safetube: {
           red: '#FF0033',
           crimson: '#D90429',
-          dark: '#0F0F0F',
-          darker: '#080808',
-          card: '#181818',
-          cardHover: '#222222',
-          border: '#272727',
-          lightBg: '#F9F9F9',
-          lightCard: '#FFFFFF',
-          lightBorder: '#E5E5E5'
+          // True OLED Pitch Black
+          dark: '#000000',
+          darker: '#000000',
+          card: '#0D0D0D',
+          cardHover: '#171717',
+          border: '#1E1E1E',
+          // True Pure Crisp White
+          lightBg: '#FFFFFF',
+          lightCard: '#F7F7F8',
+          lightBorder: '#E5E7EB'
         }
       },
       fontFamily: {
-        sans: ['Roboto', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       }
     },
   },

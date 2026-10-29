@@ -6,8 +6,6 @@ import {
   VolumeX,
   Video,
   ArrowLeft,
-  Info,
-  Disc3,
   Bookmark,
   Share2
 } from 'lucide-react';
@@ -15,6 +13,8 @@ import { VideoItem } from '../../types/video';
 import { YTPlayerState, PlayerStats } from '../../types/player';
 import { formatSeconds } from '../../utils/duration';
 import { updateMediaSession, updateMediaSessionPositionState, clearMediaSession } from '../../services/mediaSessionService';
+import { backgroundAudio } from '../../services/backgroundAudioService';
+import { AudioWaveform } from './AudioWaveform';
 
 interface AudioModeViewProps {
   video: VideoItem;
@@ -43,8 +43,6 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
     state: YTPlayerState.UNSTARTED,
   });
 
-  const [showPlatformInfo, setShowPlatformInfo] = useState(false);
-  const [showVideoFrame, setShowVideoFrame] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
 
   // Control handlers
@@ -52,12 +50,14 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
     if (playerRef.current && typeof playerRef.current.playVideo === 'function') {
       playerRef.current.playVideo();
     }
+    backgroundAudio.startAudioSession();
   }, []);
 
   const handlePause = useCallback(() => {
     if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
       playerRef.current.pauseVideo();
     }
+    backgroundAudio.stopAudioSession();
   }, []);
 
   const handleSeek = useCallback((seconds: number) => {
@@ -127,7 +127,14 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
             },
             onStateChange: (e: any) => {
               if (isCancelled) return;
-              setStats((prev) => ({ ...prev, state: e.data }));
+              const newState = e.data;
+              setStats((prev) => ({ ...prev, state: newState }));
+
+              if (newState === YTPlayerState.PLAYING) {
+                backgroundAudio.startAudioSession();
+              } else if (newState === YTPlayerState.PAUSED || newState === YTPlayerState.ENDED) {
+                backgroundAudio.stopAudioSession();
+              }
             },
           },
         });
@@ -164,6 +171,7 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
         }
       }
       playerRef.current = null;
+      backgroundAudio.stopAudioSession();
       clearMediaSession();
     };
   }, [video.id]);
@@ -202,7 +210,7 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
   const isPlaying = stats.state === YTPlayerState.PLAYING;
 
   return (
-    <div className="w-full max-w-3xl mx-auto px-0 sm:px-4 py-2 sm:py-4 animate-fade-in">
+    <div className="w-full max-w-2xl mx-auto px-0 sm:px-4 py-2 sm:py-4 animate-fade-in">
       {/* Top Bar */}
       <div className="flex items-center justify-between gap-1.5 mb-3 px-1">
         <button
@@ -210,23 +218,14 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-200 border border-white/10 text-xs sm:text-sm font-medium transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Library</span>
+          <span>Back</span>
         </button>
 
         <div className="flex items-center gap-1.5 sm:gap-2">
           <button
-            onClick={() => setShowPlatformInfo(!showPlatformInfo)}
-            className="flex items-center gap-1 p-2 sm:px-3 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-gray-300 border border-white/10 text-xs font-medium transition-all"
-            title="Read Android & Browser background playback limitations"
-          >
-            <Info className="w-3.5 h-3.5 text-blue-400" />
-            <span className="hidden sm:inline">Playback Info</span>
-          </button>
-
-          <button
             onClick={onSwitchToVideoMode}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-safetube-red/10 hover:bg-safetube-red/20 text-safetube-red border border-safetube-red/30 text-xs sm:text-sm font-medium transition-all"
-            title="Switch to Full Video Mode"
+            title="Switch to Video Mode"
           >
             <Video className="w-4 h-4" />
             <span>Video Mode</span>
@@ -246,7 +245,7 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
           <button
             onClick={handleShare}
             className="flex items-center gap-1 p-2 sm:px-2.5 sm:py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 text-xs sm:text-sm font-medium"
-            title={copiedLink ? 'Copied to clipboard' : 'Share link'}
+            title={copiedLink ? 'Copied' : 'Share'}
           >
             <Share2 className="w-4 h-4" />
             {copiedLink && <span className="text-[10px] text-emerald-400">Copied</span>}
@@ -254,25 +253,9 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
         </div>
       </div>
 
-      {/* Platform Limitations Notice Drawer */}
-      {showPlatformInfo && (
-        <div className="mb-4 p-3 sm:p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-blue-200 text-xs space-y-1.5 animate-fade-in">
-          <div className="flex items-center gap-2 font-semibold text-blue-300 text-xs sm:text-sm">
-            <Info className="w-4 h-4" />
-            Android & Browser Playback Notice
-          </div>
-          <p className="text-[11px] leading-relaxed">
-            SafeTube uses official YouTube player + <strong>MediaSession API</strong> for notification shade and lockscreen controls.
-          </p>
-          <p className="text-[10px] text-blue-300/80">
-            Note: On mobile Chrome, screen-off audio may pause when device locks due to OS power-saving policies.
-          </p>
-        </div>
-      )}
-
-      {/* Audio Focused Vinyl / Artwork Card */}
-      <div className="relative bg-gradient-to-b from-safetube-card to-safetube-darker p-4 sm:p-8 rounded-2xl sm:rounded-3xl border border-safetube-border shadow-2xl flex flex-col items-center text-center overflow-hidden">
-        {/* Ambient background artwork blur */}
+      {/* Audio Focused Card */}
+      <div className="relative bg-safetube-card p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-safetube-border shadow-2xl flex flex-col items-center text-center overflow-hidden">
+        {/* Subtle background ambient blur */}
         <div
           className="absolute inset-0 opacity-15 filter blur-3xl pointer-events-none scale-150 transition-opacity"
           style={{
@@ -282,30 +265,22 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
           }}
         />
 
-        {/* Artwork / Vinyl Showcase (Proportional on 320px - 430px) */}
-        <div className="relative my-3 sm:my-6 group">
-          <div
-            className={`w-36 h-36 sm:w-56 sm:h-56 rounded-full p-2 bg-gradient-to-tr from-gray-800 to-gray-950 shadow-2xl border-4 border-gray-800 flex items-center justify-center transition-transform duration-1000 ${
-              isPlaying ? 'animate-spin-slow' : ''
-            }`}
-          >
-            {/* Album Cover inside Vinyl */}
-            <div className="relative w-28 h-28 sm:w-44 sm:h-44 rounded-full overflow-hidden border-2 border-black/40 shadow-inner">
-              <img
-                src={video.thumbnailHighUrl || video.thumbnailUrl}
-                alt={video.title}
-                className="w-full h-full object-cover"
-              />
-              {/* Vinyl center hole */}
-              <div className="absolute inset-0 m-auto w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-safetube-dark border-3 sm:border-4 border-gray-900 shadow-md flex items-center justify-center">
-                <Disc3 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-500" />
-              </div>
-            </div>
+        {/* Stationary Album Cover (ঘুরবে না - stationary rounded cover) */}
+        <div className="relative my-2 sm:my-4">
+          <div className="w-44 h-44 sm:w-56 sm:h-56 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10">
+            <img
+              src={video.thumbnailHighUrl || video.thumbnailUrl}
+              alt={video.title}
+              className="w-full h-full object-cover"
+            />
           </div>
         </div>
 
+        {/* Audio Waveform (উচু নিচু হতে থাকবে তরঙ্গের মত) */}
+        <AudioWaveform isPlaying={isPlaying} />
+
         {/* Title and Channel */}
-        <div className="relative z-10 max-w-lg mb-4 px-2">
+        <div className="relative z-10 max-w-lg mb-3 px-2">
           <h2 className="text-base sm:text-xl font-bold text-white mb-1 leading-snug">
             {video.title}
           </h2>
@@ -315,7 +290,7 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
         </div>
 
         {/* Audio Timeline Scrubber */}
-        <div className="relative z-10 w-full max-w-md mb-4 px-2">
+        <div className="relative z-10 w-full max-w-md mb-3 px-2">
           <div className="flex items-center justify-between text-[11px] font-mono text-gray-400 mb-1">
             <span>{formatSeconds(stats.currentTime)}</span>
             <span>{formatSeconds(stats.duration)}</span>
@@ -331,7 +306,7 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
         </div>
 
         {/* Playback Controls */}
-        <div className="relative z-10 flex items-center gap-5 sm:gap-6 mb-5 sm:mb-6">
+        <div className="relative z-10 flex items-center gap-5 sm:gap-6 mb-4">
           <button
             onClick={() => handleSeek(Math.max(0, stats.currentTime - 10))}
             className="p-2.5 sm:p-3 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition-all text-[11px] sm:text-xs font-semibold"
@@ -394,24 +369,11 @@ export const AudioModeView: React.FC<AudioModeViewProps> = ({
               <option value={2}>2.0x</option>
             </select>
           </div>
-
-          <button
-            onClick={() => setShowVideoFrame(!showVideoFrame)}
-            className="text-[11px] text-gray-400 hover:text-white underline ml-1"
-          >
-            {showVideoFrame ? 'Hide Frame' : 'Show Frame'}
-          </button>
         </div>
 
-        {/* Official YouTube player frame */}
-        <div
-          className={`mt-4 w-full max-w-md transition-all duration-300 ${
-            showVideoFrame ? 'opacity-100 max-h-96' : 'opacity-0 max-h-0 pointer-events-none'
-          } overflow-hidden rounded-xl border border-white/10`}
-        >
-          <div className="aspect-video w-full">
-            <div id={playerIdRef.current} className="w-full h-full" />
-          </div>
+        {/* Hidden Official YouTube player frame in DOM */}
+        <div className="absolute top-0 left-0 w-1 h-1 opacity-0 pointer-events-none overflow-hidden">
+          <div id={playerIdRef.current} className="w-full h-full" />
         </div>
       </div>
     </div>

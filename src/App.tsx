@@ -9,9 +9,7 @@ import {
   getWatchHistory,
   addToWatchHistory,
   getStoredTheme,
-  setStoredTheme,
-  getCustomConfig,
-  CustomConfig
+  setStoredTheme
 } from './services/storageService';
 import { setupPwaInstallPrompt, promptPwaInstall } from './services/pwaService';
 
@@ -23,19 +21,14 @@ import { VideoGrid } from './components/catalog/VideoGrid';
 import { SafePlayer } from './components/player/SafePlayer';
 import { AudioModeView } from './components/player/AudioModeView';
 
-// Modals
-import { PolicyModal } from './components/modals/PolicyModal';
-import { PlatformLimitationsModal } from './components/modals/PlatformLimitationsModal';
-import { DeveloperConfigModal } from './components/modals/DeveloperConfigModal';
-
 export const App: React.FC = () => {
-  // Theme state
+  // Theme state: dark (pure OLED black) vs light (pure crisp white)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => getStoredTheme());
 
   // Navigation and view state
   const [viewMode, setViewMode] = useState<ViewMode>('catalog');
   const [selectedVideo, setSelectedVideo] = useState<VideoItem | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen] = useState(false);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,41 +38,14 @@ export const App: React.FC = () => {
   const [bookmarkedIds, setBookmarkedIds] = useState<Set<string>>(() => getBookmarks());
   const [historyIds, setHistoryIds] = useState<string[]>(() => getWatchHistory());
 
-  // Modals state
-  const [isPolicyModalOpen, setIsPolicyModalOpen] = useState(false);
-  const [isLimitationsModalOpen, setIsLimitationsModalOpen] = useState(false);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-
   // PWA install state
   const [canInstallPwa, setCanInstallPwa] = useState(false);
 
   // Catalog state
   const [catalog, setCatalog] = useState<VideoItem[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(true);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncStats, setSyncStats] = useState({
-    totalVideos: 0,
-    duplicateCount: 0,
-    rejectedCount: 0,
-    source: 'initial',
-    lastSynced: new Date(),
-  });
 
-  // Developer configuration (configured with user sheet ID)
-  const [config, setConfig] = useState<CustomConfig>(() => {
-    const saved = getCustomConfig();
-    if (saved && saved.sheetId && !saved.sheetId.includes('placeholder')) {
-      return saved;
-    }
-    return {
-      sheetId: APP_CONFIG.GOOGLE_SHEETS_ID,
-      range: APP_CONFIG.GOOGLE_SHEETS_RANGE,
-      apiKey: APP_CONFIG.GOOGLE_SHEETS_API_KEY,
-      youtubeApiKey: APP_CONFIG.YOUTUBE_API_KEY,
-    };
-  });
-
-  // Apply dark/light class to root HTML element
+  // Apply dark/light class to root HTML element (ডার্ক মুড অন করলে পুরা ডার্ক, অফ করলে পুরা অফ)
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'dark') {
@@ -100,36 +66,31 @@ export const App: React.FC = () => {
     return cleanup;
   }, []);
 
-  // Fetch approved video catalog from Google Sheets
+  // Fetch approved video catalog (silently in background)
   const syncCatalog = useCallback(
     async (showLoadingSpinner = false) => {
       if (showLoadingSpinner) setIsLoadingCatalog(true);
-      setIsSyncing(true);
 
       try {
         const result = await fetchApprovedCatalog(
-          config.sheetId,
-          config.range,
-          config.apiKey,
-          config.youtubeApiKey
+          APP_CONFIG.GOOGLE_SHEETS_ID,
+          APP_CONFIG.GOOGLE_SHEETS_RANGE,
+          APP_CONFIG.GOOGLE_SHEETS_API_KEY,
+          APP_CONFIG.YOUTUBE_API_KEY
         );
 
         setCatalog(result.videos);
-        setSyncStats({
-          totalVideos: result.totalApproved,
-          duplicateCount: result.duplicateCount,
-          rejectedCount: result.rejectedCount,
-          source: result.source,
-          lastSynced: result.lastSynced,
-        });
+        // Default selected video for audio mode if none selected yet
+        if (!selectedVideo && result.videos.length > 0) {
+          setSelectedVideo(result.videos[0]);
+        }
       } catch (err) {
         console.error('Catalog synchronization failed:', err);
       } finally {
         setIsLoadingCatalog(false);
-        setIsSyncing(false);
       }
     },
-    [config]
+    [selectedVideo]
   );
 
   // Initial catalog load on mount
@@ -199,7 +160,7 @@ export const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-safetube-dark text-gray-100 transition-colors">
+    <div className="min-h-screen flex flex-col bg-safetube-darker text-gray-100 transition-colors">
       {/* Top Header */}
       <Header
         searchQuery={searchQuery}
@@ -207,14 +168,8 @@ export const App: React.FC = () => {
         onClearSearch={() => setSearchQuery('')}
         theme={theme}
         onToggleTheme={handleToggleTheme}
-        onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onOpenPolicy={() => setIsPolicyModalOpen(true)}
         canInstallPwa={canInstallPwa}
         onInstallPwa={handleInstallPwa}
-        isSyncing={isSyncing}
-        onRefreshCatalog={() => syncCatalog(false)}
-        approvedCount={catalog.length}
       />
 
       {/* Main Container */}
@@ -228,17 +183,21 @@ export const App: React.FC = () => {
             setActiveFilter('all');
             setSearchQuery('');
           }}
+          onNavigateAudio={() => {
+            if (selectedVideo || catalog.length > 0) {
+              if (!selectedVideo && catalog.length > 0) {
+                setSelectedVideo(catalog[0]);
+              }
+              setViewMode('audio-mode');
+            }
+          }}
           onNavigateBookmarks={() => {
             setViewMode('catalog');
             setActiveFilter('bookmarked');
             setSearchQuery('');
           }}
-          onOpenPolicy={() => setIsPolicyModalOpen(true)}
-          onOpenLimitations={() => setIsLimitationsModalOpen(true)}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          approvedCount={catalog.length}
+          totalCount={catalog.length}
           bookmarkedCount={bookmarkedIds.size}
-          catalogSource={syncStats.source}
         />
 
         {/* Content Viewport */}
@@ -251,13 +210,13 @@ export const App: React.FC = () => {
               isBookmarked={bookmarkedIds.has(selectedVideo.id)}
               onToggleBookmark={() => handleToggleBookmark(selectedVideo.id)}
             />
-          ) : viewMode === 'audio-mode' && selectedVideo ? (
+          ) : viewMode === 'audio-mode' && (selectedVideo || catalog.length > 0) ? (
             <AudioModeView
-              video={selectedVideo}
+              video={selectedVideo || catalog[0]}
               onBackToCatalog={handleBackToCatalog}
               onSwitchToVideoMode={() => setViewMode('player')}
-              isBookmarked={bookmarkedIds.has(selectedVideo.id)}
-              onToggleBookmark={() => handleToggleBookmark(selectedVideo.id)}
+              isBookmarked={selectedVideo ? bookmarkedIds.has(selectedVideo.id) : false}
+              onToggleBookmark={() => selectedVideo && handleToggleBookmark(selectedVideo.id)}
             />
           ) : (
             <VideoGrid
@@ -272,13 +231,12 @@ export const App: React.FC = () => {
               onSelectAudioMode={handleSelectAudioMode}
               bookmarkedIds={bookmarkedIds}
               onToggleBookmark={handleToggleBookmark}
-              onRefreshSheet={() => syncCatalog(false)}
             />
           )}
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile App Bottom Navigation */}
       <MobileNav
         activeView={viewMode}
         onNavigateHome={() => {
@@ -286,45 +244,20 @@ export const App: React.FC = () => {
           setActiveFilter('all');
           setSearchQuery('');
         }}
+        onNavigateAudio={() => {
+          if (selectedVideo || catalog.length > 0) {
+            if (!selectedVideo && catalog.length > 0) {
+              setSelectedVideo(catalog[0]);
+            }
+            setViewMode('audio-mode');
+          }
+        }}
         onNavigateBookmarks={() => {
           setViewMode('catalog');
           setActiveFilter('bookmarked');
           setSearchQuery('');
         }}
-        onOpenPolicy={() => setIsPolicyModalOpen(true)}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
         bookmarkedCount={bookmarkedIds.size}
-      />
-
-      {/* Modals */}
-      <PolicyModal
-        isOpen={isPolicyModalOpen}
-        onClose={() => setIsPolicyModalOpen(false)}
-      />
-
-      <PlatformLimitationsModal
-        isOpen={isLimitationsModalOpen}
-        onClose={() => setIsLimitationsModalOpen(false)}
-      />
-
-      <DeveloperConfigModal
-        isOpen={isSettingsModalOpen}
-        onClose={() => setIsSettingsModalOpen(false)}
-        currentConfig={config}
-        onApplyConfig={(newConf) => {
-          setConfig(newConf);
-          syncCatalog(true);
-        }}
-        onResetToDefault={() => {
-          setConfig({
-            sheetId: APP_CONFIG.GOOGLE_SHEETS_ID,
-            range: APP_CONFIG.GOOGLE_SHEETS_RANGE,
-            apiKey: '',
-            youtubeApiKey: '',
-          });
-          syncCatalog(true);
-        }}
-        stats={syncStats}
       />
     </div>
   );

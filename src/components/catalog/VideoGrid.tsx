@@ -17,7 +17,6 @@ interface VideoGridProps {
   onSelectAudioMode: (video: VideoItem) => void;
   bookmarkedIds: Set<string>;
   onToggleBookmark: (videoId: string) => void;
-  onRefreshSheet: () => void;
 }
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
@@ -32,11 +31,10 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   onSelectAudioMode,
   bookmarkedIds,
   onToggleBookmark,
-  onRefreshSheet,
 }) => {
   // Extract unique categories from catalog
   const categories = useMemo(() => {
-    const list = (allVideos.length > 0 ? allVideos : videos);
+    const list = allVideos.length > 0 ? allVideos : videos;
     const catSet = new Set<string>();
     list.forEach((v) => {
       if (v.category) catSet.add(v.category);
@@ -47,7 +45,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   return (
     <div className="w-full">
       {/* Category / Duration Filter Bar */}
-      <div className="mb-4">
+      <div className="mb-3 sm:mb-4">
         <CatalogFilters
           activeFilter={activeFilter}
           onSelectFilter={onSelectFilter}
@@ -57,11 +55,11 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         />
       </div>
 
-      {/* Active Search & Library Status Banner */}
+      {/* Active Search Status Banner */}
       {searchQuery && (
-        <div className="flex items-center justify-between p-3.5 mb-6 rounded-2xl bg-white/5 border border-white/10 text-sm">
+        <div className="flex items-center justify-between p-3 mb-4 rounded-xl bg-safetube-card border border-safetube-border text-xs sm:text-sm">
           <div className="flex items-center gap-2">
-            <span className="text-gray-400">Search results for:</span>
+            <span className="text-gray-400">Results for:</span>
             <span className="font-semibold text-white">"{searchQuery}"</span>
             <span className="px-2 py-0.5 rounded-full bg-safetube-red/20 text-safetube-red text-xs font-bold">
               {videos.length} found
@@ -79,8 +77,8 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
 
       {/* Video Content Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6 sm:gap-y-8">
+          {Array.from({ length: 6 }).map((_, i) => (
             <VideoCardSkeleton key={i} />
           ))}
         </div>
@@ -88,10 +86,9 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
         <EmptyState
           searchQuery={searchQuery}
           onClearSearch={onClearSearch}
-          onRefreshSheet={onRefreshSheet}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-x-4 gap-y-6 sm:gap-y-8">
           {videos.map((video) => (
             <VideoCard
               key={video.id}

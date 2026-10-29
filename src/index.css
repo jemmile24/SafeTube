@@ -7,58 +7,103 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  body {
-    @apply bg-safetube-dark text-gray-100 font-sans;
-    min-height: 100vh;
-    min-height: 100dvh;
+  /* TRUE OLED BLACK (ডার্ক মুড অন করলে পুরা ডার্ক) */
+  html.dark body {
+    background-color: #000000 !important;
+    color: #F3F4F6 !important;
   }
 
+  html.dark .bg-safetube-dark,
+  html.dark .bg-safetube-darker {
+    background-color: #000000 !important;
+  }
+
+  html.dark .bg-safetube-card {
+    background-color: #0D0D0D !important;
+    border-color: #1F1F1F !important;
+  }
+
+  html.dark .border-safetube-border {
+    border-color: #1F1F1F !important;
+  }
+
+  /* TRUE CLEAN WHITE (ডার্ক মুড অফ করলে পুরা অফ / ক্লিন হোয়াইট) */
   html.light body {
-    @apply bg-safetube-lightBg text-gray-900;
+    background-color: #FFFFFF !important;
+    color: #111827 !important;
   }
 
-  html.light .bg-safetube-dark {
-    @apply bg-safetube-lightBg;
-  }
-
+  html.light .bg-safetube-dark,
   html.light .bg-safetube-darker {
-    @apply bg-white;
+    background-color: #FFFFFF !important;
   }
 
   html.light .bg-safetube-card {
-    @apply bg-white border-safetube-lightBorder text-gray-900;
-  }
-
-  html.light .bg-safetube-cardHover:hover {
-    @apply bg-gray-50;
+    background-color: #F8F9FA !important;
+    border-color: #E5E7EB !important;
+    color: #111827 !important;
   }
 
   html.light .border-safetube-border {
-    @apply border-safetube-lightBorder;
+    border-color: #E5E7EB !important;
   }
 
   html.light .text-white {
-    @apply text-gray-900;
+    color: #111827 !important;
   }
 
   html.light .text-gray-100 {
-    @apply text-gray-900;
+    color: #111827 !important;
   }
 
   html.light .text-gray-200 {
-    @apply text-gray-800;
+    color: #1F2937 !important;
   }
 
   html.light .text-gray-300 {
-    @apply text-gray-700;
+    color: #374151 !important;
   }
 
   html.light .text-gray-400 {
-    @apply text-gray-600;
+    color: #6B7280 !important;
+  }
+
+  html.light .bg-white\/5 {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+  }
+
+  html.light .bg-white\/10 {
+    background-color: rgba(0, 0, 0, 0.08) !important;
+  }
+
+  html.light .border-white\/10 {
+    border-color: #E5E7EB !important;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
 }
 
-/* Animations */
+/* Audio Waveform Animations (উচু নিচু হতে থাকবে তরঙ্গের মত) */
+@keyframes waveAnimation {
+  0%, 100% {
+    height: 12%;
+    opacity: 0.45;
+  }
+  50% {
+    height: 100%;
+    opacity: 1;
+  }
+}
+
+.animate-wave-bar {
+  animation: waveAnimation 1.2s ease-in-out infinite alternate;
+  transform-origin: bottom;
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -70,27 +115,14 @@
   }
 }
 
-@keyframes spinSlow {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .animate-fade-in {
   animation: fadeIn 0.25s ease-out forwards;
 }
 
-.animate-spin-slow {
-  animation: spinSlow 20s linear infinite;
-}
-
-/* Custom minimal scrollbar */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 
 ::-webkit-scrollbar-track {
@@ -100,10 +132,6 @@
 ::-webkit-scrollbar-thumb {
   background: #333333;
   border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #555555;
 }
 
 .scrollbar-none::-webkit-scrollbar {

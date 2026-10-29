@@ -19,18 +19,23 @@ export function filterApprovedCatalog(
   const cleanQuery = searchQuery.trim().toLowerCase();
 
   return videos.filter((video) => {
-    // 1. Search Query filter (matches Title, Channel Name, or Description)
+    // 1. Search Query filter (matches Title, Channel Name, Description, or Category)
     if (cleanQuery) {
       const matchTitle = video.title.toLowerCase().includes(cleanQuery);
       const matchChannel = video.channelTitle.toLowerCase().includes(cleanQuery);
       const matchDescription = (video.description || '').toLowerCase().includes(cleanQuery);
+      const matchCategory = (video.category || '').toLowerCase().includes(cleanQuery);
 
-      if (!matchTitle && !matchChannel && !matchDescription) {
+      if (!matchTitle && !matchChannel && !matchDescription && !matchCategory) {
         return false;
       }
     }
 
     // 2. Active Tab filter
+    if (activeFilter === 'all') {
+      return true;
+    }
+
     if (activeFilter === 'bookmarked') {
       return bookmarkedIds.has(video.id);
     }
@@ -45,6 +50,11 @@ export function filterApprovedCatalog(
       return video.durationSeconds !== undefined && video.durationSeconds >= 900;
     }
 
-    return true;
+    // Custom category filter (e.g. "কুরআন তেলাওয়াত" or "গজল")
+    if (video.category && video.category.toLowerCase() === activeFilter.toLowerCase()) {
+      return true;
+    }
+
+    return false;
   });
 }

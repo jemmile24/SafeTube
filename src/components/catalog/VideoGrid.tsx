@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { VideoItem, CatalogFilter } from '../../types/video';
 import { VideoCard } from './VideoCard';
 import { VideoCardSkeleton } from './VideoCardSkeleton';
@@ -7,6 +7,7 @@ import { EmptyState } from './EmptyState';
 
 interface VideoGridProps {
   videos: VideoItem[];
+  allVideos?: VideoItem[];
   isLoading: boolean;
   searchQuery: string;
   activeFilter: CatalogFilter;
@@ -21,6 +22,7 @@ interface VideoGridProps {
 
 export const VideoGrid: React.FC<VideoGridProps> = ({
   videos,
+  allVideos = [],
   isLoading,
   searchQuery,
   activeFilter,
@@ -32,6 +34,16 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
   onToggleBookmark,
   onRefreshSheet,
 }) => {
+  // Extract unique categories from catalog
+  const categories = useMemo(() => {
+    const list = (allVideos.length > 0 ? allVideos : videos);
+    const catSet = new Set<string>();
+    list.forEach((v) => {
+      if (v.category) catSet.add(v.category);
+    });
+    return Array.from(catSet);
+  }, [videos, allVideos]);
+
   return (
     <div className="w-full">
       {/* Category / Duration Filter Bar */}
@@ -41,6 +53,7 @@ export const VideoGrid: React.FC<VideoGridProps> = ({
           onSelectFilter={onSelectFilter}
           totalVideos={videos.length}
           bookmarkedCount={bookmarkedIds.size}
+          categories={categories}
         />
       </div>
 

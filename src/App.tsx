@@ -65,17 +65,18 @@ export const App: React.FC = () => {
     lastSynced: new Date(),
   });
 
-  // Developer configuration (allows custom sheet testing)
+  // Developer configuration (configured with user sheet ID)
   const [config, setConfig] = useState<CustomConfig>(() => {
     const saved = getCustomConfig();
-    return (
-      saved || {
-        sheetId: APP_CONFIG.GOOGLE_SHEETS_ID,
-        range: APP_CONFIG.GOOGLE_SHEETS_RANGE,
-        apiKey: APP_CONFIG.GOOGLE_SHEETS_API_KEY,
-        youtubeApiKey: APP_CONFIG.YOUTUBE_API_KEY,
-      }
-    );
+    if (saved && saved.sheetId && !saved.sheetId.includes('placeholder')) {
+      return saved;
+    }
+    return {
+      sheetId: APP_CONFIG.GOOGLE_SHEETS_ID,
+      range: APP_CONFIG.GOOGLE_SHEETS_RANGE,
+      apiKey: APP_CONFIG.GOOGLE_SHEETS_API_KEY,
+      youtubeApiKey: APP_CONFIG.YOUTUBE_API_KEY,
+    };
   });
 
   // Apply dark/light class to root HTML element
@@ -261,6 +262,7 @@ export const App: React.FC = () => {
           ) : (
             <VideoGrid
               videos={filteredVideos}
+              allVideos={catalog}
               isLoading={isLoadingCatalog}
               searchQuery={searchQuery}
               activeFilter={activeFilter}

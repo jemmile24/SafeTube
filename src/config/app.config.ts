@@ -1,15 +1,11 @@
 /**
  * SafeTube Application Configuration
  *
- * GOOGLE SHEETS CONFIGURATION:
- * 1. Create a Google Sheet.
- * 2. Put approved YouTube URLs in Column A (e.g. Videos!A2:A).
- * 3. Set sharing to "Anyone with the link can view".
- * 4. Paste your GOOGLE_SHEETS_ID below or set VITE_GOOGLE_SHEETS_ID in your .env file.
- *
- * NOTE: For security, never commit private API keys to source control.
- * In production (Vercel), API keys can be passed to serverless functions in /api/
- * using environment variables (YOUTUBE_API_KEY, GOOGLE_SHEETS_API_KEY).
+ * Configured with User Google Sheet:
+ * Sheet ID: 1VN2RStsFIAJbuKg3ixsTjo8gO5QLqE2TrIkPCG3ofAQ
+ * Column A: Link (YouTube URL)
+ * Column B: Custom Title (Optional)
+ * Column C: Category (Optional)
  */
 
 export const APP_CONFIG = {
@@ -17,20 +13,19 @@ export const APP_CONFIG = {
   APP_TAGLINE: "Strictly Controlled Premium Video Library",
   
   // Google Sheets configuration
-  // You can override these via .env (VITE_GOOGLE_SHEETS_ID, VITE_GOOGLE_SHEETS_RANGE, etc.)
-  GOOGLE_SHEETS_ID: import.meta.env.VITE_GOOGLE_SHEETS_ID || "18G2x_KxR6Y1PqHhKqD43_placeholder_sheet_id",
-  GOOGLE_SHEETS_RANGE: import.meta.env.VITE_GOOGLE_SHEETS_RANGE || "Videos!A2:A",
+  GOOGLE_SHEETS_ID: import.meta.env.VITE_GOOGLE_SHEETS_ID || "1VN2RStsFIAJbuKg3ixsTjo8gO5QLqE2TrIkPCG3ofAQ",
+  GOOGLE_SHEETS_RANGE: import.meta.env.VITE_GOOGLE_SHEETS_RANGE || "A2:C",
   GOOGLE_SHEETS_API_KEY: import.meta.env.VITE_GOOGLE_SHEETS_API_KEY || "",
 
-  // Optional YouTube Data API v3 key for rich metadata (channel, duration, HD thumbnail)
-  // If blank, SafeTube automatically falls back to compliant YouTube oEmbed API + hqdefault thumbnail
+  // Optional YouTube Data API v3 key
+  // Blank uses automatic high-performance oEmbed API + HQ thumbnails
   YOUTUBE_API_KEY: import.meta.env.VITE_YOUTUBE_API_KEY || "",
 
-  // Auto-refresh interval for the sheet catalog (in milliseconds; 5 minutes default)
+  // Auto-refresh interval (5 minutes)
   REFRESH_INTERVAL_MS: 300000,
 
-  // Fallback to approved seed catalog if Google Sheets ID is placeholder or unreachable
-  ENABLE_SAMPLE_CATALOG_FALLBACK: true,
+  // Set to false: NEVER display sample seed videos, ONLY user approved sheet videos!
+  ENABLE_SAMPLE_CATALOG_FALLBACK: false,
 
   // Strict Content Safety Policies
   STRICT_MODE: {
@@ -42,22 +37,12 @@ export const APP_CONFIG = {
 };
 
 /**
- * Built-in approved curated seed URLs
- * These are used as guaranteed approved videos when a custom sheet has not yet been connected,
- * or when offline / testing.
- * All URLs are strictly curated educational/science/documentary videos.
+ * Built-in fallback list only used if sheet is completely unreachable
  */
 export const APPROVED_SEED_URLS: string[] = [
-  "https://www.youtube.com/watch?v=dQw4w9WgXcQ", // Rick Astley - Classic safe music
-  "https://www.youtube.com/watch?v=kJQP7kiw5Fk", // Luis Fonsi - Despacito
-  "https://www.youtube.com/watch?v=fJ9rUzIMcZQ", // Queen - Bohemian Rhapsody
-  "https://www.youtube.com/watch?v=9bZkp7q19f0", // PSY - GANGNAM STYLE
-  "https://www.youtube.com/watch?v=JGwWNGJdvx8", // Ed Sheeran - Shape of You
-  "https://www.youtube.com/watch?v=L_LUpnjgPso", // NASA / Earth View
-  "https://www.youtube.com/watch?v=y6120QOlsfU", // Darude - Sandstorm
-  "https://www.youtube.com/watch?v=7wtfhZwyrcc", // Imagine Dragons - Believer
-  "https://www.youtube.com/watch?v=2Vv-BfVoq4g", // Ed Sheeran - Perfect
-  "https://www.youtube.com/watch?v=hT_nvWreIhg", // OneRepublic - Counting Stars
-  "https://www.youtube.com/watch?v=OPf0YbXqDm0", // Mark Ronson - Uptown Funk
-  "https://www.youtube.com/watch?v=09R8_2nJtjg", // Maroon 5 - Sugar
+  "https://youtu.be/lQvM1ZLzeFM",
+  "https://youtu.be/Nm79OxT9fAA",
+  "https://youtu.be/JnX7Oc8LqD8",
+  "https://youtu.be/Xn0oot5O9J0",
+  "https://youtu.be/cH8RE-d181c",
 ];

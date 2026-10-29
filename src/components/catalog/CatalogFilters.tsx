@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Compass, Bookmark, Film } from 'lucide-react';
+import { Clock, Compass, Bookmark, Film, Tag } from 'lucide-react';
 import { CatalogFilter } from '../../types/video';
 
 interface CatalogFiltersProps {
@@ -7,6 +7,7 @@ interface CatalogFiltersProps {
   onSelectFilter: (filter: CatalogFilter) => void;
   totalVideos: number;
   bookmarkedCount: number;
+  categories?: string[];
 }
 
 export const CatalogFilters: React.FC<CatalogFiltersProps> = ({
@@ -14,18 +15,31 @@ export const CatalogFilters: React.FC<CatalogFiltersProps> = ({
   onSelectFilter,
   totalVideos,
   bookmarkedCount,
+  categories = [],
 }) => {
-  const filterOptions: { id: CatalogFilter; label: string; icon: React.ReactNode; count?: number }[] = [
+  const baseOptions: { id: CatalogFilter; label: string; icon: React.ReactNode; count?: number }[] = [
     { id: 'all', label: 'All Approved', icon: <Compass className="w-3.5 h-3.5" />, count: totalVideos },
-    { id: 'short', label: 'Short Form (< 5m)', icon: <Film className="w-3.5 h-3.5" /> },
-    { id: 'long', label: 'In-Depth (> 15m)', icon: <Clock className="w-3.5 h-3.5" /> },
-    { id: 'bookmarked', label: 'Saved', icon: <Bookmark className="w-3.5 h-3.5" />, count: bookmarkedCount },
   ];
+
+  // Add developer custom categories from Google Sheet Column C (e.g. কুরআন তেলাওয়াত, গজল)
+  categories.forEach((cat) => {
+    baseOptions.push({
+      id: cat,
+      label: cat,
+      icon: <Tag className="w-3.5 h-3.5 text-emerald-400" />,
+    });
+  });
+
+  baseOptions.push(
+    { id: 'short', label: 'Short (< 5m)', icon: <Film className="w-3.5 h-3.5" /> },
+    { id: 'long', label: 'In-Depth (> 15m)', icon: <Clock className="w-3.5 h-3.5" /> },
+    { id: 'bookmarked', label: 'Saved', icon: <Bookmark className="w-3.5 h-3.5" />, count: bookmarkedCount }
+  );
 
   return (
     <div className="flex items-center gap-2 overflow-x-auto pb-3 pt-1 scrollbar-none">
-      {filterOptions.map((opt) => {
-        const isActive = activeFilter === opt.id;
+      {baseOptions.map((opt) => {
+        const isActive = activeFilter.toLowerCase() === opt.id.toLowerCase();
         return (
           <button
             key={opt.id}

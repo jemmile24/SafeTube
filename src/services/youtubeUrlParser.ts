@@ -16,6 +16,20 @@ export interface ParsedVideoEntry {
   error?: string;
 }
 
+export interface SheetRowData {
+  url: string;
+  customTitle?: string;
+  customCategory?: string;
+}
+
+export interface ApprovedEntryData {
+  videoId: string;
+  originalUrl: string;
+  customTitle?: string;
+  customCategory?: string;
+  rowIndex: number;
+}
+
 /**
  * Extracts the canonical 11-character YouTube video ID from various supported URL formats.
  *
@@ -69,7 +83,7 @@ export function extractYouTubeVideoId(urlString: string): string | null {
     let candidateId: string | null = null;
 
     if (hostname === 'youtu.be') {
-      // Format: https://youtu.be/VIDEO_ID or https://youtu.be/VIDEO_ID?t=10
+      // Format: https://youtu.be/VIDEO_ID or https://youtu.be/VIDEO_ID?t=10 or https://youtu.be/VIDEO_ID?si=...
       const pathSegment = parsed.pathname.slice(1).split('/')[0];
       candidateId = pathSegment;
     } else {
@@ -145,12 +159,22 @@ export function validateYouTubeUrl(rawUrl: string): ParsedVideoEntry {
   };
 }
 
+function isHeaderRow(val: string): boolean {
+  const lower = val.toLowerCase();
+  return (
+    lower === 'video_url' ||
+    lower === 'url' ||
+    lower === 'youtube url' ||
+    lower === 'youtube_url' ||
+    lower === 'link' ||
+    lower.includes('লিংক') ||
+    lower.includes('শিরোনাম') ||
+    lower.includes('ক্যাটাগরি')
+  );
+}
+
 /**
  * Processes a list of raw URLs from Google Sheets:
- * 1. Filters out blank rows
- * 2. Validates each URL
- * 3. Deduplicates by canonical video ID while strictly preserving spreadsheet order
- * 4. Collects error rows for debugging/auditing
  */
 export function processSheetUrls(rawRows: string[]): {
   approvedVideoIds: string[];
@@ -158,37 +182,55 @@ export function processSheetUrls(rawRows: string[]): {
   rejectedRows: { rowNumber: number; rawValue: string; reason: string }[];
   duplicateCount: number;
 } {
+  const rowData: SheetRowData[] = rawRows.map((r) => ({ url: r }));
+  const res = processSheetRowEntries(rowData);
+  return {
+    approvedVideoIds: res.approvedVideoIds,
+    approvedEntries: res.approvedEntries.map((e) => ({
+      videoId: e.videoId,
+      originalUrl: e.originalUrl,
+      rowIndex: e.rowIndex,
+    })),
+    rejectedRows: res.rejectedRows,
+    duplicateCount: res.duplicateCount,
+  };
+}
+
+/**
+ * Processes structured rows with optional custom title and category
+ */
+export function processSheetRowEntries(rawRows: SheetRowData[]): {
+  approvedVideoIds: string[];
+  approvedEntries: ApprovedEntryData[];
+  rejectedRows: { rowNumber: number; rawValue: string; reason: string }[];
+  duplicateCount: number;
+} {
   const seenIds = new Set<string>();
   const approvedVideoIds: string[] = [];
-  const approvedEntries: { videoId: string; originalUrl: string; rowIndex: number }[] = [];
+  const approvedEntries: ApprovedEntryData[] = [];
   const rejectedRows: { rowNumber: number; rawValue: string; reason: string }[] = [];
   let duplicateCount = 0;
 
-  rawRows.forEach((rowValue, index) => {
-    const rowNumber = index + 2; // Assuming row 1 is header (Videos!A2:A)
-    const trimmed = (rowValue || '').trim();
+  rawRows.forEach((row, index) => {
+    const rowNumber = index + 1;
+    const trimmedUrl = (row.url || '').trim();
 
     // Ignore blank rows silently
-    if (!trimmed) {
+    if (!trimmedUrl) {
       return;
     }
 
-    // Skip column headers if someone included "video_url" or "url" in row A2
-    if (
-      trimmed.toLowerCase() === 'video_url' ||
-      trimmed.toLowerCase() === 'url' ||
-      trimmed.toLowerCase() === 'youtube url' ||
-      trimmed.toLowerCase() === 'youtube_url'
-    ) {
+    // Skip column headers
+    if (isHeaderRow(trimmedUrl)) {
       return;
     }
 
-    const parsed = validateYouTubeUrl(trimmed);
+    const parsed = validateYouTubeUrl(trimmedUrl);
 
     if (!parsed.isValid || !parsed.videoId) {
       rejectedRows.push({
         rowNumber,
-        rawValue: trimmed,
+        rawValue: trimmedUrl,
         reason: parsed.error || 'Invalid YouTube URL',
       });
       return;
@@ -205,6 +247,8 @@ export function processSheetUrls(rawRows: string[]): {
     approvedEntries.push({
       videoId: parsed.videoId,
       originalUrl: parsed.originalUrl,
+      customTitle: row.customTitle?.trim() || undefined,
+      customCategory: row.customCategory?.trim() || undefined,
       rowIndex: rowNumber,
     });
   });

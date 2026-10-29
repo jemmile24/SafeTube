@@ -1,5 +1,5 @@
 import { APP_CONFIG, APPROVED_SEED_URLS } from '../config/app.config';
-import { processSheetUrls } from './youtubeUrlParser';
+import { processSheetRowEntries, SheetRowData } from './youtubeUrlParser';
 import { getVideosMetadata } from './metadataService';
 import { VideoItem } from '../types/video';
 
@@ -14,36 +14,57 @@ export interface SheetFetchResult {
 }
 
 /**
- * Robust CSV parser for extracting Column A from Google Sheets CSV export
+ * Splits a CSV line taking quotes into account
  */
-export function parseCsvColumnA(csvText: string): string[] {
+export function parseCsvLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * Robust CSV parser for extracting Column A (URL), Column B (Title), Column C (Category)
+ */
+export function parseCsvRows(csvText: string): SheetRowData[] {
   if (!csvText) return [];
 
-  const rows: string[] = [];
+  const rows: SheetRowData[] = [];
   const lines = csvText.split(/\r?\n/);
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Handle CSV quoting for first column
-    let colA = '';
-    if (trimmed.startsWith('"')) {
-      const closingQuote = trimmed.indexOf('"', 1);
-      if (closingQuote !== -1) {
-        colA = trimmed.substring(1, closingQuote);
-      } else {
-        colA = trimmed.replace(/^"+|"+$/g, '');
-      }
-    } else {
-      // Split by comma
-      const commaIdx = trimmed.indexOf(',');
-      colA = commaIdx !== -1 ? trimmed.substring(0, commaIdx) : trimmed;
-    }
+    const cols = parseCsvLine(trimmed);
+    const url = cols[0] || '';
+    const customTitle = cols[1] || undefined;
+    const customCategory = cols[2] || undefined;
 
-    colA = colA.trim();
-    if (colA) {
-      rows.push(colA);
+    if (url) {
+      rows.push({
+        url,
+        customTitle,
+        customCategory,
+      });
     }
   }
 
@@ -51,11 +72,18 @@ export function parseCsvColumnA(csvText: string): string[] {
 }
 
 /**
+ * Legacy helper for backwards compatibility
+ */
+export function parseCsvColumnA(csvText: string): string[] {
+  return parseCsvRows(csvText).map((r) => r.url);
+}
+
+/**
  * Fetches approved YouTube URLs from Google Sheets.
  * Supports:
  * 1. Google Sheets API v4 (if API Key is configured)
  * 2. Public Google Sheets CSV / gviz export (no API key required if sheet is public/viewable)
- * 3. Local seed catalog fallback (if sheet ID is placeholder or unreachable)
+ * 3. Seed fallback (only if ENABLE_SAMPLE_CATALOG_FALLBACK is true)
  */
 export async function fetchApprovedCatalog(
   sheetId = APP_CONFIG.GOOGLE_SHEETS_ID,
@@ -69,11 +97,22 @@ export async function fetchApprovedCatalog(
     sheetId === 'YOUR_GOOGLE_SHEET_ID';
 
   // If using placeholder ID and fallback is enabled, load curated seed catalog
-  if (isPlaceholder && APP_CONFIG.ENABLE_SAMPLE_CATALOG_FALLBACK) {
-    return loadSeedCatalog(youtubeApiKey);
+  if (isPlaceholder) {
+    if (APP_CONFIG.ENABLE_SAMPLE_CATALOG_FALLBACK) {
+      return loadSeedCatalog(youtubeApiKey);
+    }
+    return {
+      videos: [],
+      totalApproved: 0,
+      duplicateCount: 0,
+      rejectedCount: 0,
+      source: 'google_sheets_csv',
+      lastSynced: new Date(),
+      error: 'No Google Sheet ID configured',
+    };
   }
 
-  let rawUrls: string[] = [];
+  let rowData: SheetRowData[] = [];
   let source: 'google_sheets_csv' | 'google_sheets_api' | 'seed_fallback' = 'google_sheets_csv';
 
   try {
@@ -90,14 +129,19 @@ export async function fetchApprovedCatalog(
 
       const data = await res.json();
       const values: string[][] = data.values || [];
-      rawUrls = values.map((row) => (row && row[0] ? String(row[0]) : '')).filter(Boolean);
+      rowData = values
+        .filter((row) => row && row[0])
+        .map((row) => ({
+          url: String(row[0] || ''),
+          customTitle: row[1] ? String(row[1]) : undefined,
+          customCategory: row[2] ? String(row[2]) : undefined,
+        }));
     } else {
       // Method 2: Public Google Sheets export (via gviz / export?format=csv)
       source = 'google_sheets_csv';
 
-      // Parse sheet name if specified in range (e.g. "Videos!A2:A")
       let sheetNameParam = '';
-      if (range.includes('!')) {
+      if (range.includes('!') && !range.startsWith('Sheet1') && !range.startsWith('Videos')) {
         const sheetName = range.split('!')[0];
         sheetNameParam = `&sheet=${encodeURIComponent(sheetName)}`;
       }
@@ -113,28 +157,60 @@ export async function fetchApprovedCatalog(
           throw new Error(`Failed to load Google Sheet export (Status ${res.status})`);
         }
         const csvText = await altRes.text();
-        rawUrls = parseCsvColumnA(csvText);
+        rowData = parseCsvRows(csvText);
       } else {
         const csvText = await res.text();
-        rawUrls = parseCsvColumnA(csvText);
+        rowData = parseCsvRows(csvText);
       }
     }
 
     // Process and validate all extracted URLs
-    const processed = processSheetUrls(rawUrls);
+    const processed = processSheetRowEntries(rowData);
 
-    // If Google Sheet was completely empty or failed, fallback gracefully
-    if (processed.approvedVideoIds.length === 0 && APP_CONFIG.ENABLE_SAMPLE_CATALOG_FALLBACK) {
-      console.warn('Google Sheet contained no valid YouTube URLs, falling back to seed catalog');
-      return loadSeedCatalog(youtubeApiKey);
+    // If Google Sheet was completely empty
+    if (processed.approvedVideoIds.length === 0) {
+      if (APP_CONFIG.ENABLE_SAMPLE_CATALOG_FALLBACK) {
+        console.warn('Google Sheet contained no valid YouTube URLs, falling back to seed catalog');
+        return loadSeedCatalog(youtubeApiKey);
+      }
+      return {
+        videos: [],
+        totalApproved: 0,
+        duplicateCount: processed.duplicateCount,
+        rejectedCount: processed.rejectedRows.length,
+        source,
+        lastSynced: new Date(),
+      };
     }
 
     // Fetch video metadata for approved IDs
-    const videos = await getVideosMetadata(processed.approvedVideoIds, youtubeApiKey);
+    const fetchedVideos = await getVideosMetadata(processed.approvedVideoIds, youtubeApiKey);
+
+    // Merge developer custom titles and categories from the sheet if provided!
+    const customMap = new Map<string, { customTitle?: string; customCategory?: string }>();
+    processed.approvedEntries.forEach((entry) => {
+      customMap.set(entry.videoId, {
+        customTitle: entry.customTitle,
+        customCategory: entry.customCategory,
+      });
+    });
+
+    const finalVideos: VideoItem[] = fetchedVideos.map((video) => {
+      const custom = customMap.get(video.id);
+      return {
+        ...video,
+        title: custom?.customTitle || video.title,
+        customTitle: custom?.customTitle,
+        category: custom?.customCategory,
+        description: custom?.customCategory
+          ? `${custom.customCategory} • ${video.description}`
+          : video.description,
+      };
+    });
 
     return {
-      videos,
-      totalApproved: videos.length,
+      videos: finalVideos,
+      totalApproved: finalVideos.length,
       duplicateCount: processed.duplicateCount,
       rejectedCount: processed.rejectedRows.length,
       source,
@@ -142,7 +218,7 @@ export async function fetchApprovedCatalog(
     };
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
-    console.warn('Google Sheets sync error, using fallback catalog:', errorMessage);
+    console.warn('Google Sheets sync error:', errorMessage);
 
     if (APP_CONFIG.ENABLE_SAMPLE_CATALOG_FALLBACK) {
       const fallback = await loadSeedCatalog(youtubeApiKey);
@@ -163,10 +239,11 @@ export async function fetchApprovedCatalog(
 }
 
 /**
- * Loads the curated approved seed URLs (used for development, demo, and fallback)
+ * Loads the curated approved seed URLs (used only when fallback is explicitly enabled)
  */
 async function loadSeedCatalog(youtubeApiKey?: string): Promise<SheetFetchResult> {
-  const processed = processSheetUrls(APPROVED_SEED_URLS);
+  const rowData: SheetRowData[] = APPROVED_SEED_URLS.map((url) => ({ url }));
+  const processed = processSheetRowEntries(rowData);
   const videos = await getVideosMetadata(processed.approvedVideoIds, youtubeApiKey);
 
   return {
